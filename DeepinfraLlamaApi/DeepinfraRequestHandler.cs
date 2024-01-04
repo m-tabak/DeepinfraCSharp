@@ -1,59 +1,65 @@
 ﻿// Ignore Spelling: Deepinfra
 
+using DeepinfraLlamaApi;
 using RestSharp;
-using System.Diagnostics;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 
-namespace DeepinfraLlamaApi
+namespace DeepinfraCSharp
 {
-    public class DeepinfraRequestHandler
+    internal class DeepinfraRequestHandler
     {
-        private static RestClient client = new();
+        private static RestClient client = new RestClient("https://api.deepinfra.com/v1");
         private readonly string _apiKey;
 
-        public DeepinfraRequestHandler(string apiKey)
+        internal DeepinfraRequestHandler(string apiKey)
         {
             _apiKey = apiKey;
         }
 
-        public async Task<DeepinfraResponseModel?> InferAsync(string instructions)
+        internal async Task<DeepinfraSingleResponse?> RequestSingleResponseAsync(DeepinfraRequest requestContent)
         {
-            DeepinfraRequestModel request = new()
-            { 
-                Input =$"[INST] {instructions} [/INST]"  
-            };
-            return await SendHttpRequestAsync(request);
+            var request = GetRequest(requestContent);
+            return await SendRequestAsync(request);
         }
 
-        public async Task<DeepinfraResponseModel?> SendRequestAsync(DeepinfraRequestModel request)
+        internal async IAsyncEnumerable<DeepinfraStreamResponse> RequestStreamResponseAsync(
+            DeepinfraRequest requestContent,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
-            return await SendHttpRequestAsync(request);
+            var request = GetRequest(requestContent);
+            var stream = await client.DownloadStreamAsync(request, cancellationToken);
+            if (stream == null)
+                yield break;
+
+            using var reader = new StreamReader(stream);
+            while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+            {
+                var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+                line = line.Substring(line.IndexOf('{'));
+                yield return JsonSerializer.Deserialize<DeepinfraStreamResponse>(line)!;
+            }
         }
 
-        private async Task<DeepinfraResponseModel?> SendHttpRequestAsync(DeepinfraRequestModel requestContent)
+        private async Task<DeepinfraSingleResponse?> SendRequestAsync(RestRequest request)
         {
-            try
-            {
-                var client = new RestClient("https://api.deepinfra.com/v1");
-                var request = new RestRequest("/inference/meta-llama/Llama-2-70b-chat-hf", Method.Post);
-                request.AddHeader("Content-Type", "application/json");
-                request.AddHeader("User-Agent", "insomnia/8.5.1");
-                request.AddHeader("Accept", "application/json");
-                request.AddJsonBody(requestContent);
-                RestResponse response = await client.ExecuteAsync(request);
-                if (response.Content == null)
-                    return null;
-                return JsonSerializer.Deserialize<DeepinfraResponseModel>(response.Content);
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e.Message);
-            }
-            return null;
+            RestResponse response = await client.ExecuteAsync(request);
+            if (response.Content == null)
+                return null;
+            return JsonSerializer.Deserialize<DeepinfraSingleResponse>(response.Content);
+        }
+
+        private RestRequest GetRequest(DeepinfraRequest requestContent)
+        {
+            var request = new RestRequest("/inference/meta-llama/Llama-2-70b-chat-hf", Method.Post);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddHeader("Accept", "application/json");
+            request.AddHeader("Authorization", $"Bearer {_apiKey}");
+            request.AddJsonBody(requestContent);
+            return request;
         }
     }
 }

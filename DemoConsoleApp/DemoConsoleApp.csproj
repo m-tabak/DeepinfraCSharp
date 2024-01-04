@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DeepinfraLlamaApi\DeepinfraLlamaApi.csproj" />
+    <ProjectReference Include="..\DeepinfraLlamaApi\DeepinfraCSharp.csproj" />
   </ItemGroup>
 
 </Project>
