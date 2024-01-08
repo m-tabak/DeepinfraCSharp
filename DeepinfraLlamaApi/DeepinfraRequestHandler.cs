@@ -9,12 +9,14 @@ namespace DeepinfraCSharp
 {
     internal class DeepinfraRequestHandler
     {
-        private static RestClient client = new RestClient("https://api.deepinfra.com/v1");
+        private static RestClient client = new RestClient("https://api.deepinfra.com/v1/inference/");
         private readonly string _apiKey;
+        private readonly string _endpoint;
 
-        internal DeepinfraRequestHandler(string apiKey)
+        internal DeepinfraRequestHandler(string apiKey, string endpoint)
         {
             _apiKey = apiKey;
+            _endpoint = endpoint;
         }
 
         internal async Task<DeepinfraSingleResponse?> RequestSingleResponseAsync(DeepinfraRequest requestContent)
@@ -54,11 +56,15 @@ namespace DeepinfraCSharp
 
         private RestRequest GetRequest(DeepinfraRequest requestContent)
         {
-            var request = new RestRequest("/inference/meta-llama/Llama-2-70b-chat-hf", Method.Post);
-            request.AddHeader("Content-Type", "application/json");
+            var request = new RestRequest(_endpoint, Method.Post);
             request.AddHeader("Accept", "application/json");
             request.AddHeader("Authorization", $"Bearer {_apiKey}");
-            request.AddJsonBody(requestContent);
+            JsonSerializerOptions options = new JsonSerializerOptions()
+            {
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            };
+            var json = JsonSerializer.Serialize<DeepinfraRequest>(requestContent, options);
+            request.AddStringBody(json, ContentType.Json);
             return request;
         }
     }

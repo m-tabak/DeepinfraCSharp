@@ -49,7 +49,7 @@ namespace DeepinfraCSharp
         [JsonPropertyName("generated_text")]
         internal string GeneratedText { get; set; } = "";
 
-        internal override string ToString()
+        public override string ToString()
         {
             return GeneratedText;
         }
