@@ -19,6 +19,8 @@ namespace DeepinfraCSharp
         {
             requsetHandler = new(apiKey, model);
             _model = model;
+            if (model.IsAiroboros)
+                AddStopWord("USER");
         }
 
         /// <summary>
@@ -30,15 +32,20 @@ namespace DeepinfraCSharp
         /// <summary>
         /// A special messages to steer the behavior of the large langauge model.
         /// </summary>
-        public string SystemPrompt { get; set; } = "";
+        public string SystemPrompt { get; set; } = string.Empty;
 
         /// <summary>
         /// Whether to send the previous questions and answers with the requests. Defult = false
         /// </summary>
-        public bool isChatMode = false;
+        public bool IsChatMode = false;
 
         /// <summary>
-        /// Up to 4 strings that will terminate generation immediately. eg. "User".
+        /// A string that stores the current the prompt, questons and answers. Only works if <see cref="IsChatMode"/> is set to true.
+        /// </summary>
+        public string Chat { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Get a list of up to 4 strings that will terminate generation immediately. The word "USER" is added automatically when using an Airoboros model.
         /// </summary>
         public List<string>? StopWords { get; private set; } = null;
 
@@ -63,13 +70,14 @@ namespace DeepinfraCSharp
         {
             DeepinfraRequest request = new()
             {
-                Input = FormatPrompt(question),
+                Input = FormatInput(question),
                 //Todo add other options
             };
 
             DeepinfraSingleResponse? deepinfraResponse = await requsetHandler.RequestSingleResponseAsync(request);
             if (deepinfraResponse == null)
                 return "";
+            Chat += deepinfraResponse.Results[0].GeneratedText;
             return deepinfraResponse.Results[0].GeneratedText;
         }
 
@@ -81,7 +89,7 @@ namespace DeepinfraCSharp
         {
             DeepinfraRequest request = new()
             {
-                Input = FormatPrompt(question),
+                Input = FormatInput(question),
                 //Todo add other options
 
             };
@@ -90,50 +98,82 @@ namespace DeepinfraCSharp
 
             await foreach (var response in streamResponses.WithCancellation(cancellationToken))
             {
+                if (IsChatMode)
+                    Chat += response.Token.Text;
                 yield return response.Token.Text;
             }
-
-
         }
-        private string FormatPrompt(string question)
+
+        private string FormatInput(string question)
         {
-            string result = "";
-            bool firstLine = true;
-            bool isAiroborosInstructionBlockOpened = false;
+            string input = "";
+            if (IsChatMode && Chat != string.Empty)
+            {
+                input = Chat;
+                if (!input.EndsWith('\n'))
+                    input += "\n";
+            }
+            else
+            {
+                input = FormatPrompt();
+            }
+
+            //Add the last question
+            if (!string.IsNullOrEmpty(question))
+            {
+                if (_model.IsAiroboros)
+                {
+                    input += $"USER: {question}\nASSISTANT:";
+                }
+                else
+                {
+                    if (input == "")
+                    {
+                        input = $"[INST] {question} [/INST]";
+                    }
+                    else
+                    {
+                        input = $"\n\n[INST] {question} [/INST]";
+                    }
+
+                    if (input == "")
+                        throw new WarningException("No prompt or question was sent with request to Deepinfra!");
+                }
+            }
+            if (IsChatMode)
+                Chat = input;
+            return input;
+        }
+        private string FormatPrompt()
+        {
+            string prompt = "";
             if (_model.IsAiroboros)
             {
                 //Add the system prompt.
                 if (!string.IsNullOrEmpty(SystemPrompt))
                 {
-                    result += SystemPrompt + "\n";
+                    prompt += SystemPrompt + "\n";
                 }
                 //Add the examples.
                 foreach (var key in Examples.Keys)
                 {
-                    result += $"USER: {key}\nASSISTANT: {Examples[key]}\n";
+                    prompt += $"USER: {key}\nASSISTANT: {Examples[key]}\n";
                 }
-                //Add the final question
-                if (!string.IsNullOrEmpty(question))
-                { 
-                    result += $"USER: {question}\nASSISTANT:\n";
-                }
-                if (isAiroborosInstructionBlockOpened)
-                    result += "ENDINSTRUCTION\n";
-                return result;
             }
             else
             {
+                bool firstLine = true;
                 //Add the examples.
                 foreach (var key in Examples.Keys)
                 {
                     if (firstLine)
                     {
-                        result = $"[INST] {key} [/ INST] {Examples[key]}";
+                        prompt = $"[INST] {key} [/INST] {Examples[key]}";
                         firstLine = false;
                     }
                     else
                     {
-                        result += $"</s><s>\n[INST] {key} [/ INST] {Examples[key]}";
+                        prompt += $"</s><s>\n[INST] {key} [/INST] {Examples[key]}";
                     }
                 }
                 //Add the system prompt.
@@ -141,30 +181,16 @@ namespace DeepinfraCSharp
                 {
                     if (firstLine)
                     {
-                        result = $"[INST] <<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n[/INST]";
+                        prompt = $"[INST] <<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n[/INST]";
                         firstLine = false;
                     }
                     else
                     {
-                        result = result.Insert(7, $"<<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n");
+                        prompt = prompt.Insert(7, $"<<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n");
                     }
                 }
-                //Add the final instruction/question
-                if (!string.IsNullOrEmpty(question))
-                    if (firstLine)
-                    {
-                        result = $"[INST] {question} [/ INST]";
-                        firstLine = false;
-                    }
-                    else
-                    {
-                        result = $"\n\n[INST] {question} [/ INST]";
-                    }
-
-                if (result == "")
-                    throw new WarningException("No prompt or question was sent with request to Deepinfra!");
-                return result;
             }
+            return prompt;
         }
     }
 }
