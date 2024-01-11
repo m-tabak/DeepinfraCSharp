@@ -23,7 +23,7 @@ namespace DeepinfraCSharp
 
         /// <summary>
         /// Examples to give in the prompt.
-        //  Set the key to a question, and set the value to an answer.
+        /// The (key, value) pair represents (Question, Answer).
         /// </summary>
         public Dictionary<string, string> Examples { get; set; } = new();
 
@@ -99,9 +99,26 @@ namespace DeepinfraCSharp
         {
             string result = "";
             bool firstLine = true;
+            bool isAiroborosInstructionBlockOpened = false;
             if (_model.IsAiroboros)
             {
-                // TODO Airboros prompt
+                //Add the system prompt.
+                if (!string.IsNullOrEmpty(SystemPrompt))
+                {
+                    result += SystemPrompt + "\n";
+                }
+                //Add the examples.
+                foreach (var key in Examples.Keys)
+                {
+                    result += $"USER: {key}\nASSISTANT: {Examples[key]}\n";
+                }
+                //Add the final question
+                if (!string.IsNullOrEmpty(question))
+                { 
+                    result += $"USER: {question}\nASSISTANT:\n";
+                }
+                if (isAiroborosInstructionBlockOpened)
+                    result += "ENDINSTRUCTION\n";
                 return result;
             }
             else
@@ -118,7 +135,6 @@ namespace DeepinfraCSharp
                     {
                         result += $"</s><s>\n[INST] {key} [/ INST] {Examples[key]}";
                     }
-
                 }
                 //Add the system prompt.
                 if (!string.IsNullOrEmpty(SystemPrompt))

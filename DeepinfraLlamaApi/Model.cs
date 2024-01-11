@@ -17,7 +17,6 @@ namespace DeepinfraCSharp
 
         public static Model Llama2_70b => new Model() { UriPath = "meta-llama/Llama-2-70b-chat-hf" };
 
-
         public static Model MythoMax_13b => new Model() { UriPath = "Gryphe/MythoMax-L2-13b" };
 
         public static Model Airoboros_70b => new Model() { UriPath = "deepinfra/airoboros-70b", IsAiroboros = true };
