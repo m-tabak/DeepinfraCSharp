@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace DeepinfraCSharp
@@ -19,8 +20,18 @@ namespace DeepinfraCSharp
         {
             requsetHandler = new(apiKey, model);
             _model = model;
-            if (model.IsAiroboros)
-                AddStopWord("USER");
+            switch (model.PromptStyle)
+            {
+                case PromptFormat.Airoboros:
+                    StopWords = new() { "USER" };
+                    break;
+                case PromptFormat.Llama:
+                    StopWords = new() { "[INST" };
+                    break;
+                case PromptFormat.Alpaca:
+                    StopWords = new() { "###" };
+                    break;
+            }
         }
 
         /// <summary>
@@ -45,22 +56,44 @@ namespace DeepinfraCSharp
         public string Chat { get; set; } = string.Empty;
 
         /// <summary>
-        /// Get a list of up to 4 strings that will terminate generation immediately. The word "USER" is added automatically when using an Airoboros model.
+        /// temperature to use for sampling. 0 means the output is deterministic. Values greater than 1 encourage more diversity. If left to be null, Deepinfra applies a default value.
         /// </summary>
-        public List<string>? StopWords { get; private set; } = null;
+        public double? Temprature { get; set; } = null;
 
         /// <summary>
-        ///  Adds a string to <see cref="StopWords"/> .If you add more than 4 it will overwrite the last string from the list.
+        /// Maximum length of the newly generated text. If left to be null, Deepinfra applies a default value.
         /// </summary>
-        /// <param name="word"></param>
-        public void AddStopWord(string word)
-        {
-            if (StopWords == null) StopWords = new List<string>();
-            if (StopWords.Count == 4)
-                StopWords[3] = word;
-            else
-                StopWords.Add(word);
-        }
+        public int? MaxNewTokens { get; set; } = null;
+
+        /// <summary>
+        /// Sample from the set of tokens with highest probability such that sum of probabilities is higher than p. Values from 0 to 1, lower values focus on the most probable tokens.Higher values sample more low-probability tokens. If left to be null, Deepinfra applies a default value.
+        /// </summary>
+        public double? TopP { get; set; } = null;
+
+        /// <summary>
+        /// Sample from the best k (number of) tokens. 0 means off, max is 100000. If left to be null, Deepinfra applies a default value.
+        /// </summary>
+        public double? TopK { get; set; } = null;
+
+        /// <summary>
+        /// Values from 0.01 to 5. Value of 1 means no penalty, values greater than 1 discourage repetition, smaller than 1 encourage repetition. If left to be null, Deepinfra applies a default value.
+        /// </summary>
+        public double? RepetitionPenalty { get; set; } = null;
+
+        /// <summary>
+        /// Values form -2 to +2. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics. If left to be null, Deepinfra applies a default value.
+        /// </summary>
+        public double? PresencePenalty { get; set; } = null;
+
+        /// <summary>
+        /// Values form -2 to +2. Positive values penalize new tokens based on how many times they appear in the text so far, increasing the model's likelihood to talk about new topics. If left to be null, Deepinfra applies a default value.
+        /// </summary>
+        public double? FrequencyPenalty { get; set; } = null;
+
+        /// <summary>
+        /// A list of strings that will terminate generation immediately. Only the first 4 items get sent with the request. "USER" or "[INST]" is added automatically depinding on the model.
+        /// </summary>
+        public List<string>? StopWords { get; set; }
 
         /// <summary>
         ///  Send a request to infer a text, and get a single complete response.
@@ -68,40 +101,66 @@ namespace DeepinfraCSharp
         /// <returns>The generated text</returns>
         public async Task<string> RequestSingleResponseAsync(string question)
         {
-            DeepinfraRequest request = new()
-            {
-                Input = FormatInput(question),
-                //Todo add other options
-            };
+            var request = GetNewRequest(question);
 
             DeepinfraSingleResponse? deepinfraResponse = await requsetHandler.RequestSingleResponseAsync(request);
             if (deepinfraResponse == null)
                 return "";
-            Chat += deepinfraResponse.Results[0].GeneratedText;
-            return deepinfraResponse.Results[0].GeneratedText;
+            if (deepinfraResponse.Results.Count <= 0)
+                throw new Exception("Nko tokens where generated in the response");
+            var generatedText = deepinfraResponse.Results[0].GeneratedText;
+            //remove the stop sequence from the end of the generated text, if it exists.
+            if (StopWords is not null)
+                foreach (var stopWord in StopWords)
+                {
+                    if (generatedText.EndsWith(stopWord))
+                        generatedText = generatedText.Remove(generatedText.Length - stopWord.Length + 1);
+                }
+            if (IsChatMode)
+                Chat += generatedText;
+            return generatedText;
         }
 
         /// <summary>
         /// Send a request to infer a text, and get a stream of words as a response.
         /// </summary>
-        /// <returns> An iterable list of words generated and recived as a stream.</returns>
+        /// <returns> An iterable list of words and characters generated and recived as a stream.</returns>
         public async IAsyncEnumerable<string> RequsetStreamResponseAsync(string question, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            DeepinfraRequest request = new()
-            {
-                Input = FormatInput(question),
-                //Todo add other options
-
-            };
+            var request = GetNewRequest(question);
 
             IAsyncEnumerable<DeepinfraStreamResponse> streamResponses = requsetHandler.RequestStreamResponseAsync(request, cancellationToken);
 
             await foreach (var response in streamResponses.WithCancellation(cancellationToken))
             {
+                if (StopWords is not null && StopWords.Contains(response.Token.Text))
+                    yield break;
                 if (IsChatMode)
                     Chat += response.Token.Text;
                 yield return response.Token.Text;
             }
+        }
+
+        private DeepinfraRequest GetNewRequest(string question)
+        {
+            //Deepinfra only accepts 4 stop sequences.
+            if (StopWords is not null && StopWords.Count > 4)
+            {
+                StopWords = StopWords.Slice(0, 4);
+            }
+
+            return new DeepinfraRequest()
+            {
+                Input = FormatInput(question),
+                Stop = StopWords,
+                Temperature = Temprature,
+                MaxNewTokens = MaxNewTokens,
+                TopK = TopK,
+                TopP = TopP,
+                RepetitionPenalty = RepetitionPenalty,
+                FrequencyPenalty = FrequencyPenalty,
+                PresencePenalty = PresencePenalty,
+            };
         }
 
         private string FormatInput(string question)
@@ -121,74 +180,86 @@ namespace DeepinfraCSharp
             //Add the last question
             if (!string.IsNullOrEmpty(question))
             {
-                if (_model.IsAiroboros)
+                switch (_model.PromptStyle)
                 {
-                    input += $"USER: {question}\nASSISTANT:";
+                    case PromptFormat.Airoboros:
+                        input += $"USER: {question}\nASSISTANT:";
+                        break;
+                    case PromptFormat.Llama:
+                        if (!input.EndsWith("\n"))
+                            input += "\n";
+                        input += $"[INST] {question} [/INST]";
+                        break;
+                    case PromptFormat.Alpaca:
+                        input += $"### Instruction:\n\n{question}\n\n### Response:";
+                        break;
                 }
-                else
-                {
-                    if (input == "")
-                    {
-                        input = $"[INST] {question} [/INST]";
-                    }
-                    else
-                    {
-                        input = $"\n\n[INST] {question} [/INST]";
-                    }
-
-                    if (input == "")
-                        throw new WarningException("No prompt or question was sent with request to Deepinfra!");
-                }
+                if (input == "")
+                    throw new WarningException("No prompt or question was sent with request to Deepinfra!");
             }
             if (IsChatMode)
                 Chat = input;
             return input;
         }
+
         private string FormatPrompt()
         {
             string prompt = "";
-            if (_model.IsAiroboros)
+            switch (_model.PromptStyle)
             {
-                //Add the system prompt.
-                if (!string.IsNullOrEmpty(SystemPrompt))
-                {
-                    prompt += SystemPrompt + "\n";
-                }
-                //Add the examples.
-                foreach (var key in Examples.Keys)
-                {
-                    prompt += $"USER: {key}\nASSISTANT: {Examples[key]}\n";
-                }
-            }
-            else
-            {
-                bool firstLine = true;
-                //Add the examples.
-                foreach (var key in Examples.Keys)
-                {
-                    if (firstLine)
+                case PromptFormat.Airoboros:
+                    //system prompt.
+                    if (!string.IsNullOrEmpty(SystemPrompt))
                     {
-                        prompt = $"[INST] {key} [/INST] {Examples[key]}";
-                        firstLine = false;
+                        prompt += SystemPrompt + "\n";
                     }
-                    else
+                    //examples.
+                    foreach (var key in Examples.Keys)
                     {
-                        prompt += $"</s><s>\n[INST] {key} [/INST] {Examples[key]}";
+                        prompt += $"USER: {key}\nASSISTANT: {Examples[key]}\n";
                     }
-                }
-                //Add the system prompt.
-                if (!string.IsNullOrEmpty(SystemPrompt))
-                {
-                    if (firstLine)
+                    break;
+                case PromptFormat.Llama:
+                    bool firstLine = true;
+                    //examples.
+                    foreach (var key in Examples.Keys)
                     {
-                        prompt = $"[INST] <<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n[/INST]";
-                        firstLine = false;
+                        if (firstLine)
+                        {
+                            prompt = $"[INST] {key} [/INST] {Examples[key]}";
+                            firstLine = false;
+                        }
+                        else
+                        {
+                            prompt += $"</s><s>\n[INST] {key} [/INST] {Examples[key]}";
+                        }
                     }
-                    else
+                    //system prompt.
+                    if (!string.IsNullOrEmpty(SystemPrompt))
                     {
-                        prompt = prompt.Insert(7, $"<<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n");
+                        if (firstLine)
+                        {
+                            prompt = $"[INST] <<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n[/INST]";
+                            firstLine = false;
+                        }
+                        else
+                        {
+                            prompt = prompt.Insert(7, $"<<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n");
+                        }
                     }
-                }
+                    break;
+                case PromptFormat.Alpaca:
+                    //system prompt.
+                    if (!string.IsNullOrEmpty(SystemPrompt))
+                    {
+                        prompt += $"{SystemPrompt}\n\n";
+                    }
+                    //examples.
+                    foreach (var key in Examples.Keys)
+                    {
+                        prompt += $"### Instruction: {key}\n\n### Response: {Examples[key]}\n";
+                    }
+                    break;
             }
             return prompt;
         }
