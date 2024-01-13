@@ -16,6 +16,8 @@
 	 <RepositoryType>git</RepositoryType>
 	 <PackageLicenseFile>LICENSE</PackageLicenseFile>
 	 <PackageTags>Deepinfra;CSharp;API;C#;LLM</PackageTags>
+	 <AssemblyVersion></AssemblyVersion>
+	 <Version>$(VersionPrefix)1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
