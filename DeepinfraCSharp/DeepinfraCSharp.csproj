@@ -6,7 +6,8 @@
     <Nullable>enable</Nullable>
 	 <UserSecretsId>6ed939cb-3337-4d7c-9ce9-9d6475b8e826</UserSecretsId>
 	 <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	 <Title>Deepinfra C# API</Title>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Title>Deepinfra C# API</Title>
 	 <Authors>m-tabak</Authors>
 	 <Copyright></Copyright>
 	 <PackageIcon>icon.png</PackageIcon>
@@ -18,7 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\..\icon.png">
+    <None Include="..\icon.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>

@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace DeepinfraCSharp
 {
+    /// <summary>
+    /// Parameters to use in Inference.
+    /// </summary>
     public class InferenceParamaters
     {
         private int? maxNewTokens = null;
@@ -17,6 +20,8 @@ namespace DeepinfraCSharp
         private double? presencePenalty = null;
         private double? frequencyPenalty = null;
 
+        /// <summary>
+        /// </summary>
         public InferenceParamaters() { }
 
         /// <summary>

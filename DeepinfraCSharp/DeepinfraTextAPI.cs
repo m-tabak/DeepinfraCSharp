@@ -4,11 +4,19 @@ using System.Runtime.CompilerServices;
 
 namespace DeepinfraCSharp
 {
+    /// <summary>
+    /// An API for managing requsets/responses to Deepinfra.
+    /// </summary>
     public class DeepinfraTextAPI
     {
         private readonly DeepinfraRequestHandler requsetHandler;
         private readonly Model _model;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="apiKey"></param>
+        /// <param name="model"></param>
         public DeepinfraTextAPI(string apiKey, Model model)
         {
             requsetHandler = new(apiKey, model);
