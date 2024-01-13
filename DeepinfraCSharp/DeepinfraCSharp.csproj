@@ -5,7 +5,32 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 	 <UserSecretsId>6ed939cb-3337-4d7c-9ce9-9d6475b8e826</UserSecretsId>
+	 <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	 <Title>Deepinfra C# API</Title>
+	 <Authors>m-tabak</Authors>
+	 <Copyright></Copyright>
+	 <PackageIcon>icon.png</PackageIcon>
+	 <PackageReadmeFile>README.md</PackageReadmeFile>
+	 <RepositoryUrl>https://github.com/m-tabak/DeepinfraCSharp</RepositoryUrl>
+	 <RepositoryType>git</RepositoryType>
+	 <PackageLicenseFile>LICENSE</PackageLicenseFile>
+	 <PackageTags>Deepinfra;CSharp;API;C#;LLM</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\icon.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 	
   <ItemGroup>
     <PackageReference Include="RestSharp" Version="110.2.0" />
