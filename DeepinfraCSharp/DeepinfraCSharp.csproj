@@ -18,6 +18,7 @@
 	 <PackageTags>Deepinfra;CSharp;API;C#;LLM</PackageTags>
 	 <AssemblyVersion></AssemblyVersion>
 	 <Version>$(VersionPrefix)1.0.1</Version>
+	 <Description>A an unofficial c# class  library to call Deepinfra's web API. It provides prompt managment and support for different models (currently only text-generation).</Description>
   </PropertyGroup>
 
   <ItemGroup>
