@@ -20,3 +20,6 @@ await foreach(var word in wordsStream)
 }
 //Output: The color of an Orange is Orange.
 ```
+## Requirements
+
+Framework .NET 6.0 or higher.
