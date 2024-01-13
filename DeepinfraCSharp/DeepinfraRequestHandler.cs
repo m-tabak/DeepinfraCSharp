@@ -2,8 +2,6 @@
 
 using DeepinfraLlamaApi;
 using RestSharp;
-using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -49,7 +47,9 @@ namespace DeepinfraCSharp
             using var reader = new StreamReader(stream);
             while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
             {
-                var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                var line = await reader.ReadLineAsync()
+                    .WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
                 var indexOfJson = line.IndexOf('{');

@@ -1,14 +1,7 @@
 ﻿using DeepinfraLlamaApi;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+
 
 namespace DeepinfraCSharp
 {
@@ -16,6 +9,7 @@ namespace DeepinfraCSharp
     {
         private readonly DeepinfraRequestHandler requsetHandler;
         private readonly Model _model;
+
         public DeepinfraTextAPI(string apiKey, Model model)
         {
             requsetHandler = new(apiKey, model);
@@ -51,47 +45,19 @@ namespace DeepinfraCSharp
         public bool IsChatMode = false;
 
         /// <summary>
-        /// A string that stores the current the prompt, questons and answers. Only works if <see cref="IsChatMode"/> is set to true.
+        /// The current conversation, including the prompt. Only works if <see cref="IsChatMode"/> is set to true.
         /// </summary>
-        public string Chat { get; set; } = string.Empty;
+        public string ChatText { get; set; } = string.Empty;
 
         /// <summary>
-        /// temperature to use for sampling. 0 means the output is deterministic. Values greater than 1 encourage more diversity. If left to be null, Deepinfra applies a default value.
+        /// Parameters used in generating text. 
+        /// If no value was assigned to a parameter, Deepinfra uses a default value. 
+        /// For more information about default values see https://deepinfra.com/meta-llama/Llama-2-70b-chat-hf/api#input-max_new_tokens/>
         /// </summary>
-        public double? Temprature { get; set; } = null;
+        public InferenceParamaters Paramaters { get; set; } = new();
 
         /// <summary>
-        /// Maximum length of the newly generated text. If left to be null, Deepinfra applies a default value.
-        /// </summary>
-        public int? MaxNewTokens { get; set; } = null;
-
-        /// <summary>
-        /// Sample from the set of tokens with highest probability such that sum of probabilities is higher than p. Values from 0 to 1, lower values focus on the most probable tokens.Higher values sample more low-probability tokens. If left to be null, Deepinfra applies a default value.
-        /// </summary>
-        public double? TopP { get; set; } = null;
-
-        /// <summary>
-        /// Sample from the best k (number of) tokens. 0 means off, max is 100000. If left to be null, Deepinfra applies a default value.
-        /// </summary>
-        public double? TopK { get; set; } = null;
-
-        /// <summary>
-        /// Values from 0.01 to 5. Value of 1 means no penalty, values greater than 1 discourage repetition, smaller than 1 encourage repetition. If left to be null, Deepinfra applies a default value.
-        /// </summary>
-        public double? RepetitionPenalty { get; set; } = null;
-
-        /// <summary>
-        /// Values form -2 to +2. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics. If left to be null, Deepinfra applies a default value.
-        /// </summary>
-        public double? PresencePenalty { get; set; } = null;
-
-        /// <summary>
-        /// Values form -2 to +2. Positive values penalize new tokens based on how many times they appear in the text so far, increasing the model's likelihood to talk about new topics. If left to be null, Deepinfra applies a default value.
-        /// </summary>
-        public double? FrequencyPenalty { get; set; } = null;
-
-        /// <summary>
-        /// A list of strings that will terminate generation immediately. Only the first 4 items get sent with the request. "USER" or "[INST]" is added automatically depinding on the model.
+        /// Strings that will terminate generation immediately. Only the first 4 strings will be sent with the request.
         /// </summary>
         public List<string>? StopWords { get; set; }
 
@@ -117,14 +83,14 @@ namespace DeepinfraCSharp
                         generatedText = generatedText.Remove(generatedText.Length - stopWord.Length + 1);
                 }
             if (IsChatMode)
-                Chat += generatedText;
+                ChatText += generatedText;
             return generatedText;
         }
 
         /// <summary>
         /// Send a request to infer a text, and get a stream of words as a response.
         /// </summary>
-        /// <returns> An iterable list of words and characters generated and recived as a stream.</returns>
+        /// <returns> An iterable list of tokens.</returns>
         public async IAsyncEnumerable<string> RequsetStreamResponseAsync(string question, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var request = GetNewRequest(question);
@@ -136,7 +102,7 @@ namespace DeepinfraCSharp
                 if (StopWords is not null && StopWords.Contains(response.Token.Text))
                     yield break;
                 if (IsChatMode)
-                    Chat += response.Token.Text;
+                    ChatText += response.Token.Text;
                 yield return response.Token.Text;
             }
         }
@@ -146,29 +112,29 @@ namespace DeepinfraCSharp
             //Deepinfra only accepts 4 stop sequences.
             if (StopWords is not null && StopWords.Count > 4)
             {
-                StopWords = StopWords.Slice(0, 4);
+                StopWords = StopWords.Take(4).ToList();
             }
 
             return new DeepinfraRequest()
             {
                 Input = FormatInput(question),
                 Stop = StopWords,
-                Temperature = Temprature,
-                MaxNewTokens = MaxNewTokens,
-                TopK = TopK,
-                TopP = TopP,
-                RepetitionPenalty = RepetitionPenalty,
-                FrequencyPenalty = FrequencyPenalty,
-                PresencePenalty = PresencePenalty,
+                Temperature = Paramaters.Temperature,
+                MaxNewTokens = Paramaters.MaxNewTokens,
+                TopK = Paramaters.TopK,
+                TopP = Paramaters.TopP,
+                RepetitionPenalty = Paramaters.RepetitionPenalty,
+                FrequencyPenalty = Paramaters.FrequencyPenalty,
+                PresencePenalty = Paramaters.PresencePenalty,
             };
         }
 
         private string FormatInput(string question)
         {
             string input = "";
-            if (IsChatMode && Chat != string.Empty)
+            if (IsChatMode && ChatText != string.Empty)
             {
-                input = Chat;
+                input = ChatText;
                 if (!input.EndsWith('\n'))
                     input += "\n";
             }
@@ -198,7 +164,7 @@ namespace DeepinfraCSharp
                     throw new WarningException("No prompt or question was sent with request to Deepinfra!");
             }
             if (IsChatMode)
-                Chat = input;
+                ChatText = input;
             return input;
         }
 
