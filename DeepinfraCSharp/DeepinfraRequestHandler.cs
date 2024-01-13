@@ -1,6 +1,5 @@
 ﻿// Ignore Spelling: Deepinfra
 
-using DeepinfraLlamaApi;
 using RestSharp;
 using System.Runtime.CompilerServices;
 using System.Text.Json;

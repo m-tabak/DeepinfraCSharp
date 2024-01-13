@@ -1,11 +1,10 @@
-﻿using DeepinfraCSharp;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-namespace DeepinfraLlamaApi
+namespace DeepinfraCSharp
 {
     internal class DeepinfraRequest : InferenceParamaters
     {
-        [JsonConstructorAttribute]
+        [JsonConstructor]
         internal DeepinfraRequest()
         {
         }
