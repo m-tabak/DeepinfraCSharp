@@ -17,8 +17,11 @@
 	 <PackageLicenseFile>LICENSE</PackageLicenseFile>
 	 <PackageTags>Deepinfra;CSharp;API;C#;LLM</PackageTags>
 	 <AssemblyVersion></AssemblyVersion>
-	 <Version>$(VersionPrefix)1.0.1</Version>
+	 <Version>$(VersionPrefix)1.0.2</Version>
 	 <Description>An unofficial C# class library to call Deepinfra's web API. It provides prompt managment and support for different models (currently only text-generation).</Description>
+	 <PackageReleaseNotes>* Added class Interaction
+* Made chat conversation and prompt examples as lists of interactions.
+* Provided some missing documentation.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

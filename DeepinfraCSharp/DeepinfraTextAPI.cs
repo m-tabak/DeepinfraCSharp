@@ -13,10 +13,9 @@ namespace DeepinfraCSharp
         private readonly Model _model;
 
         /// <summary>
-        /// 
         /// </summary>
-        /// <param name="apiKey"></param>
-        /// <param name="model"></param>
+        /// <param name="apiKey">Deepinfra's authentication key</param>
+        /// <param name="model">The large language model. A static property of the type <see cref="Model"/>. Example: <see cref="Model.Airoboros_70b"/>></param>
         public DeepinfraTextAPI(string apiKey, Model model)
         {
             requsetHandler = new(apiKey, model);
@@ -36,25 +35,14 @@ namespace DeepinfraCSharp
         }
 
         /// <summary>
-        /// Examples to give in the prompt.
-        /// The (key, value) pair represents (Question, Answer).
+        /// The promp that gets send to the model. 
         /// </summary>
-        public Dictionary<string, string> Examples { get; set; } = new();
+        public PromptSettings Prompt { get; set; } = new();
 
         /// <summary>
-        /// A special messages to steer the behavior of the large langauge model.
+        /// If enabled, previous interactions in the conversation get sent with requests.
         /// </summary>
-        public string SystemPrompt { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Whether to send the previous questions and answers with the requests. Defult = false
-        /// </summary>
-        public bool IsChatMode = false;
-
-        /// <summary>
-        /// The current conversation, including the prompt. Only works if <see cref="IsChatMode"/> is set to true.
-        /// </summary>
-        public string ChatText { get; set; } = string.Empty;
+        public ChatInformation Chat { get; set; } = new();
 
         /// <summary>
         /// Parameters used in generating text. 
@@ -71,6 +59,7 @@ namespace DeepinfraCSharp
         /// <summary>
         ///  Send a request to infer a text, and get a single complete response.
         /// </summary>
+        /// <param name="question">A question to answer or text to complete.</param>
         /// <returns>The generated text</returns>
         public async Task<string> RequestSingleResponseAsync(string question)
         {
@@ -89,8 +78,8 @@ namespace DeepinfraCSharp
                     if (generatedText.EndsWith(stopWord))
                         generatedText = generatedText.Remove(generatedText.Length - stopWord.Length + 1);
                 }
-            if (IsChatMode)
-                ChatText += generatedText;
+            if (this.Chat.Enabled)
+                Chat.conversation.Add(new() { Input = question, Output = generatedText });
             return generatedText;
         }
 
@@ -99,17 +88,20 @@ namespace DeepinfraCSharp
         /// </summary>
         /// <returns> An iterable list of tokens.</returns>
         public async IAsyncEnumerable<string> RequsetStreamResponseAsync(string question, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
+        {            
             var request = GetNewRequest(question);
 
             IAsyncEnumerable<DeepinfraStreamResponse> streamResponses = requsetHandler.RequestStreamResponseAsync(request, cancellationToken);
-
+            if (this.Chat.Enabled)
+                Chat.conversation.Add(new() { Input = question, Output = "" });
+            
             await foreach (var response in streamResponses.WithCancellation(cancellationToken))
             {
                 if (StopWords is not null && StopWords.Contains(response.Token.Text))
                     yield break;
-                if (IsChatMode)
-                    ChatText += response.Token.Text;
+                if (this.Chat.Enabled)
+                    //Add the word to the output of the last interaction
+                    Chat.conversation[Chat.conversation.Count - 1].Output += response.Token.Text;
                 yield return response.Token.Text;
             }
         }
@@ -139,15 +131,14 @@ namespace DeepinfraCSharp
         private string FormatInput(string question)
         {
             string input = "";
-            if (IsChatMode && ChatText != string.Empty)
+            input = FormatPrompt();
+
+            if (Chat.Enabled && Chat.Conversation.Any())
             {
-                input = ChatText;
-                if (!input.EndsWith('\n'))
-                    input += "\n";
-            }
-            else
-            {
-                input = FormatPrompt();
+                foreach(var interaction in Chat.conversation)
+                {
+                    input += interaction.FormatInteraction(_model);
+                }
             }
 
             //Add the last question
@@ -170,8 +161,6 @@ namespace DeepinfraCSharp
                 if (input == "")
                     throw new WarningException("No prompt or question was sent with request to Deepinfra!");
             }
-            if (IsChatMode)
-                ChatText = input;
             return input;
         }
 
@@ -182,55 +171,55 @@ namespace DeepinfraCSharp
             {
                 case PromptFormat.Airoboros:
                     //system prompt.
-                    if (!string.IsNullOrEmpty(SystemPrompt))
+                    if (!string.IsNullOrEmpty(Prompt.SystemPrompt))
                     {
-                        prompt += SystemPrompt + "\n";
+                        prompt += Prompt.SystemPrompt + "\n";
                     }
-                    //examples.
-                    foreach (var key in Examples.Keys)
+                    //Examples.
+                    foreach (var example in Prompt.InteractionExamples)
                     {
-                        prompt += $"USER: {key}\nASSISTANT: {Examples[key]}\n";
+                        prompt += $"USER: {example.Input}\nASSISTANT: {example.Output}\n";
                     }
                     break;
                 case PromptFormat.Llama:
                     bool firstLine = true;
-                    //examples.
-                    foreach (var key in Examples.Keys)
+                    //Examples.
+                    foreach (var example in Prompt.InteractionExamples)
                     {
                         if (firstLine)
                         {
-                            prompt = $"[INST] {key} [/INST] {Examples[key]}";
+                            prompt = $"[INST] {example.Input} [/INST] {example.Output}";
                             firstLine = false;
                         }
                         else
                         {
-                            prompt += $"</s><s>\n[INST] {key} [/INST] {Examples[key]}";
+                            prompt += $"</s><s>\n[INST] {example.Input} [/INST] {example.Output}";
                         }
                     }
                     //system prompt.
-                    if (!string.IsNullOrEmpty(SystemPrompt))
+                    if (!string.IsNullOrEmpty(Prompt.SystemPrompt))
                     {
                         if (firstLine)
                         {
-                            prompt = $"[INST] <<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n[/INST]";
+                            prompt = $"[INST] <<SYS>>\n{Prompt.SystemPrompt}\n<<SYS>>\n\n[/INST]";
                             firstLine = false;
                         }
                         else
                         {
-                            prompt = prompt.Insert(7, $"<<SYS>>\n{SystemPrompt}\n<<SYS>>\n\n");
+                            prompt = prompt.Insert(7, $"<<SYS>>\n{Prompt.SystemPrompt}\n<<SYS>>\n\n");
                         }
                     }
                     break;
                 case PromptFormat.Alpaca:
                     //system prompt.
-                    if (!string.IsNullOrEmpty(SystemPrompt))
+                    if (!string.IsNullOrEmpty(Prompt.SystemPrompt))
                     {
-                        prompt += $"{SystemPrompt}\n\n";
+                        prompt += $"{Prompt.SystemPrompt}\n\n";
                     }
-                    //examples.
-                    foreach (var key in Examples.Keys)
+                    //Examples.
+                    foreach (var example in Prompt.InteractionExamples)
                     {
-                        prompt += $"### Instruction: {key}\n\n### Response: {Examples[key]}\n";
+                        prompt += $"### Instruction: {example.Input}\n\n### Response: {example.Output}\n";
                     }
                     break;
             }
