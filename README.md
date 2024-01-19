@@ -9,7 +9,7 @@ A simple C# .NET library to call Deepinfra's web API. It provides prompt managme
 ```C#
 using DeepinfraCSharp;
 
-var api = new DeepinfraTextAPI("Api_Key", Model.Airoboros_70b)
+var api = new DeepinfraTextAPI("Replace this with your API Key", Model.Airoboros_70b)
 {
     SystemPrompt = "Be a helpful assistant.",
 };
