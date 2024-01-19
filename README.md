@@ -1,5 +1,6 @@
 
-# DeepinfraCSharp
+# DeepinfraCSharp ![NuGet Version](https://img.shields.io/nuget/v/DeepinfraCSharp?logo=Nuget&link=https%3A%2F%2Fwww.nuget.org%2Fpackages%2FDeepinfraCSharp)
+
 
 A simple C# .NET library to call Deepinfra's web API. It provides prompt managment and support for different models (currently only text-generation). This is an unofficial library and not endorsed by Deepinfra.
 
