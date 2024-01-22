@@ -10,11 +10,10 @@ A simple C# .NET library to call Deepinfra's web API. It provides prompt managme
 ```C#
 using DeepinfraCSharp;
 
-var api = new DeepinfraTextAPI(apiKey, Model.Airoboros_70b)
-{
-    SystemPrompt = "Be a helpful assistant.",
-};
+var api = new DeepinfraTextAPI(apiKey, Model.Airoboros_70b);
+api.Prompt.SystemPrompt = "Be a helpful assistant.";
 var wordsStream = api.RequsetStreamResponseAsync("What's the color of an Orange?");
+
 await foreach(var word in wordsStream)
 {
   Console.Write(word);
