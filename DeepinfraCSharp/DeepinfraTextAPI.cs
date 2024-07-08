@@ -25,7 +25,7 @@ namespace DeepinfraCSharp
                 case PromptFormat.Airoboros:
                     StopWords = new() { "USER" };
                     break;
-                case PromptFormat.Llama:
+                case PromptFormat.Llama2:
                     StopWords = new() { "[INST" };
                     break;
                 case PromptFormat.Alpaca:
@@ -88,13 +88,13 @@ namespace DeepinfraCSharp
         /// </summary>
         /// <returns> An iterable list of tokens.</returns>
         public async IAsyncEnumerable<string> RequsetStreamResponseAsync(string question, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {            
+        {
             var request = GetNewRequest(question);
 
             IAsyncEnumerable<DeepinfraStreamResponse> streamResponses = requsetHandler.RequestStreamResponseAsync(request, cancellationToken);
             if (this.Chat.Enabled)
                 Chat.conversation.Add(new() { Input = question, Output = "" });
-            
+
             await foreach (var response in streamResponses.WithCancellation(cancellationToken))
             {
                 if (StopWords is not null && StopWords.Contains(response.Token.Text))
@@ -135,7 +135,7 @@ namespace DeepinfraCSharp
 
             if (Chat.Enabled && Chat.Conversation.Any())
             {
-                foreach(var interaction in Chat.conversation)
+                foreach (var interaction in Chat.conversation)
                 {
                     input += interaction.FormatInteraction(_model);
                 }
@@ -149,13 +149,16 @@ namespace DeepinfraCSharp
                     case PromptFormat.Airoboros:
                         input += $"USER: {question}\nASSISTANT:";
                         break;
-                    case PromptFormat.Llama:
+                    case PromptFormat.Llama2:
                         if (!input.EndsWith("\n"))
                             input += "\n";
                         input += $"[INST] {question} [/INST]";
                         break;
                     case PromptFormat.Alpaca:
                         input += $"### Instruction:\n\n{question}\n\n### Response:";
+                        break;
+                    case PromptFormat.Llama3:
+                        input += $"<|start_header_id|>user<|end_header_id|>\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n";
                         break;
                 }
                 if (input == "")
@@ -167,61 +170,25 @@ namespace DeepinfraCSharp
         private string FormatPrompt()
         {
             string prompt = "";
-            switch (_model.PromptStyle)
+            if (_model.PromptStyle == PromptFormat.Llama3)
+                prompt = "<|begin_of_text|>";
+
+            if (!string.IsNullOrEmpty(Prompt.SystemPrompt))
+                switch (_model.PromptStyle)
+                {
+                    case PromptFormat.Airoboros:
+                        prompt = Prompt.SystemPrompt + "\n";
+                        break;
+                    case PromptFormat.Alpaca:
+                        prompt = $"{Prompt.SystemPrompt}\n\n";
+                        break;
+                    case PromptFormat.Llama3:
+                        prompt += $"<|start_header_id|>system<|end_header_id|>\n{Prompt.SystemPrompt}<|eot_id|>";
+                        break;
+                }
+            foreach (var example in Prompt.InteractionExamples)
             {
-                case PromptFormat.Airoboros:
-                    //system prompt.
-                    if (!string.IsNullOrEmpty(Prompt.SystemPrompt))
-                    {
-                        prompt += Prompt.SystemPrompt + "\n";
-                    }
-                    //Examples.
-                    foreach (var example in Prompt.InteractionExamples)
-                    {
-                        prompt += $"USER: {example.Input}\nASSISTANT: {example.Output}\n";
-                    }
-                    break;
-                case PromptFormat.Llama:
-                    bool firstLine = true;
-                    //Examples.
-                    foreach (var example in Prompt.InteractionExamples)
-                    {
-                        if (firstLine)
-                        {
-                            prompt = $"[INST] {example.Input} [/INST] {example.Output}";
-                            firstLine = false;
-                        }
-                        else
-                        {
-                            prompt += $"</s><s>\n[INST] {example.Input} [/INST] {example.Output}";
-                        }
-                    }
-                    //system prompt.
-                    if (!string.IsNullOrEmpty(Prompt.SystemPrompt))
-                    {
-                        if (firstLine)
-                        {
-                            prompt = $"[INST] <<SYS>>\n{Prompt.SystemPrompt}\n<<SYS>>\n\n[/INST]";
-                            firstLine = false;
-                        }
-                        else
-                        {
-                            prompt = prompt.Insert(7, $"<<SYS>>\n{Prompt.SystemPrompt}\n<<SYS>>\n\n");
-                        }
-                    }
-                    break;
-                case PromptFormat.Alpaca:
-                    //system prompt.
-                    if (!string.IsNullOrEmpty(Prompt.SystemPrompt))
-                    {
-                        prompt += $"{Prompt.SystemPrompt}\n\n";
-                    }
-                    //Examples.
-                    foreach (var example in Prompt.InteractionExamples)
-                    {
-                        prompt += $"### Instruction: {example.Input}\n\n### Response: {example.Output}\n";
-                    }
-                    break;
+                prompt += example.FormatInteraction(_model);
             }
             return prompt;
         }

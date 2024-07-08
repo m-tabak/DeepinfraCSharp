@@ -23,11 +23,14 @@
                 case PromptFormat.Airoboros:
                     result = $"USER: {Input}\nASSISTANT: {Output}\n";
                     break;
-                case PromptFormat.Llama:
+                case PromptFormat.Llama2:
                     result = $"[INST] {Input} [/INST] {Output}\n";
                     break;
                 case PromptFormat.Alpaca:
                     result = $"### Instruction:\n\n{Input}\n\n### Response: {Output}\n";
+                    break;
+                case PromptFormat.Llama3:
+                    result = $"<|start_header_id|>user<|end_header_id|>\n{Input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n{Output}<|eot_id|>";
                     break;
             }
             return result;

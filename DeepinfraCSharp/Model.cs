@@ -8,9 +8,10 @@ namespace DeepinfraCSharp
 {
     internal enum PromptFormat
     {
-        Llama,
+        Llama2,
         Airoboros,
         Alpaca,
+        Llama3
     }
 
     /// <summary>
@@ -26,10 +27,6 @@ namespace DeepinfraCSharp
         /// <param name="model"></param>
         public static implicit operator string(Model model) => model.UriPath;
 
-        /// <summary>
-        /// LLaMa 2 is a collections of LLMs trained by Meta. This is the 70B chat optimized version.
-        /// </summary>
-        public static Model Llama2_70b => new Model() { UriPath = "meta-llama/Llama-2-70b-chat-hf", PromptStyle = PromptFormat.Llama };
 
         /// <summary>
         /// A merge of MythoMix, my MythoLogic-L2 and Huginn. This model is proficient at both roleplaying and storywriting.
@@ -37,8 +34,14 @@ namespace DeepinfraCSharp
         public static Model MythoMax_13b => new Model() { UriPath = "Gryphe/MythoMax-L2-13b", PromptStyle = PromptFormat.Alpaca};
 
         /// <summary>
-        /// A fine-tunned version of llama-2-70b using the Airoboros dataset.
+        /// A multi-model merge of several LLaMA2 70B finetunes for roleplaying and creative work. 
         /// </summary>
-        public static Model Airoboros_70b => new Model() { UriPath = "deepinfra/airoboros-70b", PromptStyle = PromptFormat.Airoboros};
+        public static Model Lzlv_70b => new Model() { UriPath = "lizpreciatior/lzlv_70b_fp16_hf", PromptStyle = PromptFormat.Airoboros};
+
+        /// <summary>
+        /// Meta Llama 3 instruction tuned generative text model in 70B size.
+        /// </summary>
+        public static Model Llama3_70B => new Model() { UriPath = "meta-llama/Meta-Llama-3-70B-Instruct", PromptStyle = PromptFormat.Llama3 };
+
     }
 }

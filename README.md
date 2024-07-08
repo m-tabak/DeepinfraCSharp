@@ -10,7 +10,7 @@ A simple C# .NET library to call Deepinfra's web API. It provides prompt managme
 ```C#
 using DeepinfraCSharp;
 
-var api = new DeepinfraTextAPI(apiKey, Model.Airoboros_70b);
+var api = new DeepinfraTextAPI(apiKey, Model.Llama3_70B);
 api.Prompt.SystemPrompt = "Be a helpful assistant.";
 var wordsStream = api.RequsetStreamResponseAsync("What's the color of an Orange?");
 
@@ -18,7 +18,7 @@ await foreach(var word in wordsStream)
 {
   Console.Write(word);
 }
-//Output: The color of an Orange is Orange.
+//Output: The color of an orange is, well, orange! Orange is a warm, vibrant color that is named after the fruit. It is a mixture of red and yellow, and is often associated with energy, enthusiasm, and creativity.
 ```
 
 ## Requirements
