@@ -7,7 +7,7 @@ namespace DeepinfraCSharp
     /// <summary>
     /// An API for managing requsets/responses to Deepinfra.
     /// </summary>
-    public class DeepinfraTextAPI
+    public class TextGenAPI
     {
         private readonly DeepinfraRequestHandler requsetHandler;
         private readonly Model _model;
@@ -16,7 +16,7 @@ namespace DeepinfraCSharp
         /// </summary>
         /// <param name="apiKey">Deepinfra's authentication key</param>
         /// <param name="model">The large language model. A static property of the type <see cref="Model"/>. Example: <see cref="Model.Airoboros_70b"/>></param>
-        public DeepinfraTextAPI(string apiKey, Model model)
+        public TextGenAPI(string apiKey, Model model)
         {
             requsetHandler = new(apiKey, model);
             _model = model;
