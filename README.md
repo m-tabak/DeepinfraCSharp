@@ -21,10 +21,6 @@ await foreach(var token in tokenStream)
 //Output: The color of an orange is, well, orange!
 ```
 
-## Requirements
-
-Framework .NET 6.0 or higher.
-
 ## Dependencies
 
 RestSharp 110.2.0
