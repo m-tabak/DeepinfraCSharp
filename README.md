@@ -10,15 +10,15 @@ A simple C# .NET library to call Deepinfra's web API. It provides prompt managme
 ```C#
 using DeepinfraCSharp;
 
-var api = new DeepinfraTextAPI(apiKey, Model.Llama3_70B);
-api.Prompt.SystemPrompt = "Be a helpful assistant.";
-var wordsStream = api.RequsetStreamResponseAsync("What's the color of an Orange?");
+var deepinfra = new TextGenApi("Your Deepinfra api Key", Model.Llama3_70B);
+deepinfra.Prompt.SystemPrompt = "Be a helpful assistant.";
+var tokenStream = deepinfra.RequsetStreamResponseAsync("What's the color of an Orange?");
 
-await foreach(var word in wordsStream)
+await foreach(var token in tokenStream)
 {
-  Console.Write(word);
+  Console.Write(token);
 }
-//Output: The color of an orange is, well, orange! Orange is a warm, vibrant color that is named after the fruit. It is a mixture of red and yellow, and is often associated with energy, enthusiasm, and creativity.
+//Output: The color of an orange is, well, orange!
 ```
 
 ## Requirements

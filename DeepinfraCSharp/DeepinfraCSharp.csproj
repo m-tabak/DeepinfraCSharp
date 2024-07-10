@@ -17,11 +17,10 @@
 	 <PackageLicenseFile>LICENSE</PackageLicenseFile>
 	 <PackageTags>Deepinfra;CSharp;API;C#;LLM</PackageTags>
 	 <AssemblyVersion></AssemblyVersion>
-	 <Version>$(VersionPrefix)1.0.2</Version>
+	 <Version>$(VersionPrefix)1.2.0</Version>
 	 <Description>An unofficial C# class library to call Deepinfra's web API. It provides prompt managment and support for different models (currently only text-generation).</Description>
-	 <PackageReleaseNotes>* Added class Interaction
-* Made chat conversation and prompt examples as lists of interactions.
-* Provided some missing documentation.</PackageReleaseNotes>
+	 <PackageReleaseNotes>*  Old LLM models removed: Llama 2 is replaced with LLama 3, and Airoboros with Lzlv.
+* The API class's name is now TextGenApi instead of DeepinfraTextAP.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
